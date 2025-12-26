@@ -1,0 +1,268 @@
+import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Dimensions,
+  ActivityIndicator,
+  Animated,
+  FlatList,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import axios from "axios";
+
+const { height } = Dimensions.get("window");
+
+export default function ConfirmRideScreen({ navigation, route }) {
+  const { token } = route.params;
+  const backend = "https://infallible-dust.onrender.com";
+
+  const VEHICLES = [
+    { id: "AUTO", name: "Auto", price: 120 },
+    { id: "MINI", name: "Mini", price: 160 },
+    { id: "SEDAN", name: "Sedan", price: 200 },
+  ];
+
+  const [vehicle, setVehicle] = useState(VEHICLES[0]);
+  const [promoText, setPromoText] = useState("");
+  const [promoSuggestions, setPromoSuggestions] = useState([]);
+  const [discount, setDiscount] = useState(0);
+  const [rideId, setRideId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("WALLET");
+
+  const baseFare = vehicle.price;
+  const tax = 30;
+  const total = Math.max(0, baseFare + tax - discount);
+
+  const driverX = useRef(new Animated.Value(40)).current;
+
+  
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(driverX, {
+          toValue: 260,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(driverX, {
+          toValue: 40,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  
+  useEffect(() => {
+    createRide();
+    fetchDefaultPromos();
+  }, []);
+
+  const createRide = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.post(
+        `${backend}/api/rides/request`,
+        { vehicleType: vehicle.id, baseFare, tax, discount: 0, total: baseFare + tax },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRideId(res.data.ride.id);
+    } catch {
+      Alert.alert("Error", "Ride creation failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
+  const fetchDefaultPromos = async () => {
+    try {
+      const res = await axios.get(`${backend}/api/promos/suggest`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPromoSuggestions(res.data.promos);
+    } catch {
+      setPromoSuggestions([]);
+    }
+  };
+
+
+  const updateVehicle = async (v) => {
+    setVehicle(v);
+    if (!rideId) return;
+    try {
+      await axios.put(
+        `${backend}/api/rides/${rideId}`,
+        { vehicleType: v.id, baseFare: v.price, tax, discount, total: v.price + tax - discount },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch {
+      Alert.alert("Error", "Failed to update vehicle");
+    }
+  };
+
+  
+  const fetchPromoSuggestions = async (text) => {
+    setPromoText(text);
+    if (!text) return fetchDefaultPromos();
+
+    try {
+      const res = await axios.get(`${backend}/api/promos/suggest?q=${text}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPromoSuggestions(res.data.promos);
+    } catch {
+      setPromoSuggestions([]);
+    }
+  };
+
+  const applyPromo = async (code) => {
+    if (!rideId) return;
+
+    try {
+      const res = await axios.post(
+        `${backend}/api/promos/apply`,
+        { rideId, code },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setDiscount(res.data.ride.discount);
+      setPromoText(code);
+      setPromoSuggestions([]);
+    } catch {
+      Alert.alert("Invalid promo code");
+      setDiscount(0);
+    }
+  };
+
+  
+  const bookRide = async () => {
+    if (!rideId) return Alert.alert("Ride not ready");
+
+    try {
+      setLoading(true);
+      await axios.post(
+        `${backend}/api/payment/confirm`,
+        { rideId, method: paymentMethod },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      navigation.replace("BookingScreen", { rideId, token });
+    } catch {
+      Alert.alert("Payment failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: "#f4f4f4" }}>
+      {/* MAP */}
+      <View style={{ height: height * 0.42, backgroundColor: "#ddd" }}>
+        <Animated.View style={{ position: "absolute", left: driverX, top: 140 }}>
+          <Ionicons name="car" size={28} color="#007aff" />
+        </Animated.View>
+      </View>
+
+  
+      <LinearGradient colors={["#fff", "#f2f2f2"]} style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={26} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Confirm Ride</Text>
+        <TouchableOpacity onPress={() => navigation.navigate("Profile", { token })}>
+          <Ionicons name="person-circle-outline" size={28} />
+        </TouchableOpacity>
+      </LinearGradient>
+
+      
+      <ScrollView style={styles.sheet} contentContainerStyle={{ paddingTop: 60 }}>
+        <View style={styles.vehicleRow}>
+          {VEHICLES.map((v) => (
+            <TouchableOpacity
+              key={v.id}
+              style={[styles.vehicleCard, vehicle.id === v.id && styles.vehicleActive]}
+              onPress={() => updateVehicle(v)}
+            >
+              <Ionicons name="car" size={22} />
+              <Text>{v.name}</Text>
+              <Text>₹{v.price}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.summary}>
+          <Text>Base Fare: ₹{baseFare}</Text>
+          <Text>Tax: ₹{tax}</Text>
+          {discount > 0 && <Text style={styles.discount}>Promo: -₹{discount}</Text>}
+          <Text style={styles.total}>Total: ₹{total}</Text>
+        </View>
+
+        <Text style={styles.section}>Promo Code</Text>
+        <TextInput
+          style={styles.promoInput}
+          placeholder="Enter promo code"
+          value={promoText}
+          onChangeText={fetchPromoSuggestions}
+        />
+
+        <FlatList
+          data={promoSuggestions}
+          keyExtractor={(i) => i.code}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={styles.promoRow} onPress={() => applyPromo(item.code)}>
+              <Text style={{ color: "#ff9500" }}>{item.code}</Text>
+              <Text>₹{item.discount}</Text>
+            </TouchableOpacity>
+          )}
+        />
+
+        <View style={styles.payRow}>
+          {["WALLET", "CASH"].map((m) => (
+            <TouchableOpacity
+              key={m}
+              style={[styles.payBtn, paymentMethod === m && styles.payActive]}
+              onPress={() => setPaymentMethod(m)}
+            >
+              <Text>{m}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.bookBtn, (!rideId || loading) && { backgroundColor: "#ccc" }]}
+          onPress={bookRide}
+          disabled={!rideId || loading}
+        >
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.bookText}>Book Ride</Text>}
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: { position: "absolute", top: 0, left: 0, right: 0, padding: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", zIndex: 100, elevation: 10, backgroundColor: "#fff" },
+  headerTitle: { fontSize: 18, fontWeight: "700" },
+  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16 },
+  vehicleRow: { flexDirection: "row", justifyContent: "space-between" },
+  vehicleCard: { backgroundColor: "#eee", padding: 12, borderRadius: 12, alignItems: "center", width: "30%" },
+  vehicleActive: { backgroundColor: "#ffd60a" },
+  summary: { marginVertical: 14 },
+  discount: { color: "green" },
+  total: { fontWeight: "700", fontSize: 16 },
+  section: { fontWeight: "700", marginTop: 14 },
+  promoInput: { backgroundColor: "#f2f2f2", borderRadius: 10, padding: 12, marginTop: 8 },
+  promoRow: { padding: 12, borderBottomWidth: 1, borderBottomColor: "#ddd", flexDirection: "row", justifyContent: "space-between" },
+  payRow: { flexDirection: "row", marginTop: 16 },
+  payBtn: { flex: 1, padding: 14, marginHorizontal: 6, backgroundColor: "#eee", alignItems: "center", borderRadius: 10 },
+  payActive: { backgroundColor: "#ffd60a" },
+  bookBtn: { backgroundColor: "#ff3d00", padding: 16, borderRadius: 14, marginTop: 20 },
+  bookText: { color: "#fff", textAlign: "center", fontWeight: "700", fontSize: 16 },
+});
