@@ -1,1 +1,9 @@
-# olago
+<img width="487" height="1094" alt="image" src="https://github.com/user-attachments/assets/26a366cb-dc8b-4952-85ac-b840dfa11b67" />
+<img width="496" height="1095" alt="image" src="https://github.com/user-attachments/assets/75f75b2a-2170-4f0e-81d9-3695ba65855c" />
+<img width="491" height="1084" alt="image" src="https://github.com/user-attachments/assets/7d5e3f49-eeab-45a8-91c4-172c1cf5ff21" />
+<img width="492" height="1100" alt="image" src="https://github.com/user-attachments/assets/4329b5f4-49b8-4a44-a085-8c7f88707533" />
+<img width="472" height="1096" alt="image" src="https://github.com/user-attachments/assets/6e1f1b94-d0af-4920-af62-706982cd4657" />
+<img width="946" height="1112" alt="image" src="https://github.com/user-attachments/assets/081fe36f-0cfb-4605-9d0d-e531b7ed8d45" />
+<img width="950" height="1125" alt="image" src="https://github.com/user-attachments/assets/57c04994-fae3-4d38-abf2-f72b0999c4de" />
+<img width="948" height="1072" alt="image" src="https://github.com/user-attachments/assets/72e657c3-ef46-4189-926a-0369c3faaf39" />
+<img width="954" height="1019" alt="image" src="https://github.com/user-attachments/assets/80c6cea2-66f6-42ea-93ab-d7f2b50403c7" />
